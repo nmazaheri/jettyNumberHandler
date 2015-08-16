@@ -1,4 +1,5 @@
 *.class
+numbers.log
 *.iml
 *.idea
 target/

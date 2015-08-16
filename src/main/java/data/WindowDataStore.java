@@ -4,6 +4,8 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -14,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class WindowDataStore {
     private static final Logger logger = LoggerFactory.getLogger(WindowDataStore.class);
-    private ConcurrentHashMap<Integer, Short> numberFrequencyMap = new ConcurrentHashMap<Integer, Short>();
+    private Set<Integer> concurrentSet = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
     private AtomicInteger windowRequestCount = new AtomicInteger();
 
     public void updateWindowIfValid(String in) {
@@ -34,23 +36,20 @@ public class WindowDataStore {
     }
 
     private void updateWindow(Integer dataKey) {
-        Short count = 1;
-        if (numberFrequencyMap.containsKey(dataKey)) {
-            count = numberFrequencyMap.get(dataKey);
-            logger.debug("{} already exists in numberFrequencyMap and has been seen {} times", dataKey, count);
-            count++;
+        if (concurrentSet.contains(dataKey)) {
+            logger.debug("{} already exists in concurrentSet", dataKey);
         } else {
+            concurrentSet.add(dataKey);
             logger.debug("{} is a new key", dataKey);
         }
         windowRequestCount.incrementAndGet();
-        numberFrequencyMap.put(dataKey, count);
     }
 
-    public ConcurrentHashMap<Integer, Short> getNumberFrequencyMap() {
-        return numberFrequencyMap;
+    Set<Integer> getConcurrentSet() {
+        return concurrentSet;
     }
 
-    public AtomicInteger getWindowRequestCount() {
+    AtomicInteger getWindowRequestCount() {
         return windowRequestCount;
     }
 }

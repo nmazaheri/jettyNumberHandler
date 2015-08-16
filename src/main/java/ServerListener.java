@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,13 +25,13 @@ public class ServerListener extends Thread {
     private ExecutorService clientProcessingPool = Executors.newFixedThreadPool(maxClients);
     private WindowDataStore windowDataStore = new WindowDataStore();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ServerListener server = new ServerListener();
         server.start();
     }
 
     public void run() {
-        startLogging();
+        startLoggingTask();
 
         try {
             ServerSocket serverSocket = new ServerSocket(socket);
@@ -42,7 +41,7 @@ public class ServerListener extends Thread {
                 if (isBelowMaxClientCapacity()) {
                     clientSocketList.add(clientSocket);
                     logger.debug("client connected; currentClientPorts={}",
-                            Arrays.toString(getPorts(clientSocketList)));
+                            ClientUtil.getActivePorts(clientSocketList));
                     clientProcessingPool.submit(new ClientTask(clientSocketList, clientSocket, windowDataStore));
                 } else {
                     // TODO: should i close the connection?
@@ -56,23 +55,17 @@ public class ServerListener extends Thread {
         }
     }
 
-    private void startLogging() {
+    private void startLoggingTask() {
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-        NumberAggregator numberAggregator = new NumberAggregator(windowDataStore.getNumberFrequencyMap(), windowDataStore.getWindowRequestCount());
-        scheduledExecutorService.scheduleAtFixedRate(numberAggregator, 0l, secondsBetweenLogAggregation, TimeUnit.SECONDS);
+        NumberAggregator numberAggregator = new NumberAggregator(windowDataStore);
+        scheduledExecutorService
+                .scheduleAtFixedRate(numberAggregator, 0l, secondsBetweenLogAggregation, TimeUnit.SECONDS);
     }
 
     private boolean isBelowMaxClientCapacity() {
         return clientSocketList.size() < maxClients;
     }
 
-    private int[] getPorts(List<Socket> clientSocketList) {
-        int[] ports = new int[clientSocketList.size()];
-        for (int i = 0; i < clientSocketList.size(); i++) {
-            ports[i] = clientSocketList.get(i).getPort();
-        }
-        return ports;
-    }
 }
 
 

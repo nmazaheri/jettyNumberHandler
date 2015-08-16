@@ -13,6 +13,7 @@ import java.util.List;
  */
 public class ClientTask implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ClientTask.class);
+    private final String terminationString = "terminate";
     private List<Socket> clientSocketList;
     private final Socket clientSocket;
     private WindowDataStore windowDataStore;
@@ -28,20 +29,23 @@ public class ClientTask implements Runnable {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             String clientData = "";
             while ((clientData = reader.readLine()) != null) {
-                logger.info("Client Data: {}", clientData);
+                logger.debug("Client Data: {}", clientData);
                 windowDataStore.updateWindowIfValid(clientData);
+                if(terminationString.equals(clientData)) {
+                    ClientUtil.disconnectClients(clientSocketList);
+                    break;
+                }
             }
 
         } catch (IOException e) {
             logger.error("Unable to read data from client socket. ", e);
         }
 
-        disconnectClient();
+        ClientUtil.removeClientFromList(clientSocket, clientSocketList);
     }
 
-    private void disconnectClient() {
-        logger.debug("client disconnected; port={}", clientSocket.getPort());
-        clientSocketList.remove(clientSocket);
-    }
+
+
+
 }
 
