@@ -1,3 +1,5 @@
+import data.NumberAggregator;
+import data.WindowDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +11,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by navid.mazaheri on 8/14/15.
@@ -16,9 +20,11 @@ import java.util.concurrent.Executors;
 public class ServerListener extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(ServerListener.class);
     private final int socket = 4000;
-    private final int maxClients = 2;
+    private final int maxClients = 5;
+    private long secondsBetweenLogAggregation = 10l;
     private List<Socket> clientSocketList = new ArrayList();
     private ExecutorService clientProcessingPool = Executors.newFixedThreadPool(maxClients);
+    private WindowDataStore windowDataStore = new WindowDataStore();
 
     public static void main(String[] args) {
         ServerListener server = new ServerListener();
@@ -26,6 +32,8 @@ public class ServerListener extends Thread {
     }
 
     public void run() {
+        startLogging();
+
         try {
             ServerSocket serverSocket = new ServerSocket(socket);
             logger.info("Server started on socket {}", socket);
@@ -35,8 +43,9 @@ public class ServerListener extends Thread {
                     clientSocketList.add(clientSocket);
                     logger.debug("client connected; currentClientPorts={}",
                             Arrays.toString(getPorts(clientSocketList)));
-                    clientProcessingPool.submit(new ClientTask(clientSocketList, clientSocket));
+                    clientProcessingPool.submit(new ClientTask(clientSocketList, clientSocket, windowDataStore));
                 } else {
+                    // TODO: should i close the connection?
                     clientSocket.close();
                     logger.warn("Too many clients");
                 }
@@ -45,6 +54,12 @@ public class ServerListener extends Thread {
         } catch (IOException e) {
             logger.error("Unable to process client request. ", e);
         }
+    }
+
+    private void startLogging() {
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        NumberAggregator numberAggregator = new NumberAggregator(windowDataStore.getNumberFrequencyMap(), windowDataStore.getWindowRequestCount());
+        scheduledExecutorService.scheduleAtFixedRate(numberAggregator, 0l, secondsBetweenLogAggregation, TimeUnit.SECONDS);
     }
 
     private boolean isBelowMaxClientCapacity() {
