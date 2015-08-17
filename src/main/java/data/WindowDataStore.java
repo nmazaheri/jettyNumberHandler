@@ -1,5 +1,6 @@
 package data;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,29 +20,36 @@ public class WindowDataStore {
     private Set<Integer> concurrentSet = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
     private AtomicInteger windowRequestCount = new AtomicInteger();
 
-    public void updateWindowIfValid(String in) {
-        if (!isValidNumber(in))
-            return;
+    public boolean updateWindow(String in) {
+        if (!isValidNumber(in)) {
+            logger.warn("input is null or not correct length = \"{}\" ", in);
+            return false;
+        }
 
         try {
             Integer integer = Integer.parseInt(in);
             updateWindow(integer);
         } catch (NumberFormatException e) {
-            logger.warn("dropping {}; unable to convert to integer", in);
+            logger.warn("Unable to convert \"{}\" to integer", in);
+            return false;
         }
+        return true;
     }
 
-    private boolean isValidNumber(String input) {
-        return (NumberUtils.isNumber(input) && input.length() == 9);
+    private boolean isValidNumber(String in) {
+        return StringUtils.isNotEmpty(in) && in.length() == 9 && StringUtils.isNumeric(in);
     }
 
     private void updateWindow(Integer dataKey) {
-        if (concurrentSet.contains(dataKey)) {
-            logger.debug("{} already exists in concurrentSet", dataKey);
-        } else {
-            concurrentSet.add(dataKey);
-            logger.debug("{} is a new key", dataKey);
+        if (logger.isTraceEnabled()) {
+            if (concurrentSet.contains(dataKey)) {
+                logger.trace("{} already exists in concurrentSet", dataKey);
+            } else {
+                logger.trace("{} is a new key", dataKey);
+            }
         }
+
+        concurrentSet.add(dataKey);
         windowRequestCount.incrementAndGet();
     }
 
