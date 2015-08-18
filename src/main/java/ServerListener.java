@@ -1,7 +1,7 @@
 import data.WindowDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.SocketUtils;
+import util.ServerUtils;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -36,7 +36,7 @@ public class ServerListener extends Thread {
             while (!serverSocket.isClosed()) {
                 Socket clientSocket = serverSocket.accept();
                 clientSocketList.add(clientSocket);
-                logger.debug("client connected; currentClientPorts={}", SocketUtils.getActivePorts(clientSocketList));
+                logger.info("client connected; currentClientPorts={}", ServerUtils.getActivePorts(clientSocketList));
                 clientProcessingPool.submit(new ClientTask(clientSocketList, clientSocket, windowDataStore, this));
             }
         } catch (SocketException e) {
@@ -46,18 +46,20 @@ public class ServerListener extends Thread {
         }
     }
 
-    public void disableServer() {
-        closeServerSocket(serverSocket);
-        clientProcessingPool.shutdownNow();
-    }
+    public void shutdown() {
+        logger.info("Shutting down server and disconnecting all clients={}",
+                ServerUtils.getActivePorts(clientSocketList));
 
-    private void closeServerSocket(ServerSocket serverSocket) {
         try {
             serverSocket.close();
         } catch (IOException e) {
             logger.warn("unable to close serverSocket. ", e);
         }
+
+        ServerUtils.attemptToCloseSockets(clientSocketList);
+        clientProcessingPool.shutdown();
     }
+
 }
 
 

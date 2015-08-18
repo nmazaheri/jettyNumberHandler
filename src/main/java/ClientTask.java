@@ -1,7 +1,7 @@
 import data.WindowDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.SocketUtils;
+import util.ServerUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,9 +15,9 @@ import java.util.List;
  */
 public class ClientTask implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ClientTask.class);
-    private final String terminationString = "terminate";
-    private List<Socket> clientSocketList;
+
     private final Socket clientSocket;
+    private List<Socket> clientSocketList;
     private WindowDataStore windowDataStore;
     private ServerListener parent;
 
@@ -32,19 +32,11 @@ public class ClientTask implements Runnable {
     public void run() {
         String clientData = readDataUntilFailure();
 
-        if (terminationString.equals(clientData)) {
-            disableServer();
+        if (ServerUtils.isTerminationString(clientData)) {
+            parent.shutdown();
         } else {
             disableClient();
         }
-    }
-
-    private void disableServer() {
-        logger.debug("terminate keyword found, disconnecting all clients",
-                SocketUtils.getActivePorts(clientSocketList));
-        parent.disableServer();
-        SocketUtils.attemptToCloseSockets(clientSocketList);
-
     }
 
     private String readDataUntilFailure() {
@@ -55,23 +47,23 @@ public class ClientTask implements Runnable {
             do {
                 clientData = reader.readLine();
                 logger.trace("Client Data: {}", clientData);
-            } while (isValid(clientData));
+            } while (continueReadingFromClient(clientData));
         } catch (SocketException e) {
             logger.debug("client socket has been closed");
         } catch (IOException e) {
             logger.warn("Unable to read data from client socket", e);
         } finally {
-            closeInput(reader);
+            closeReader(reader);
         }
 
         return clientData;
     }
 
-    private boolean isValid(String clientData) {
+    private boolean continueReadingFromClient(String clientData) {
         return !clientSocket.isClosed() && clientData != null && windowDataStore.updateWindow(clientData);
     }
 
-    private void closeInput(BufferedReader reader) {
+    private void closeReader(BufferedReader reader) {
         try {
             if (reader != null)
                 reader.close();
@@ -81,10 +73,10 @@ public class ClientTask implements Runnable {
     }
 
     private void disableClient() {
-        SocketUtils.attemptToCloseSocket(clientSocket);
+        ServerUtils.attemptToCloseSocket(clientSocket);
         clientSocketList.remove(clientSocket);
         logger.debug("client disconnected; port={}; remaining={}", clientSocket.getPort(),
-                SocketUtils.getActivePorts(clientSocketList));
+                ServerUtils.getActivePorts(clientSocketList));
     }
 }
 

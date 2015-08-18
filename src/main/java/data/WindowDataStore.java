@@ -1,9 +1,9 @@
 package data;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.ServerUtils;
 
 import java.util.Collections;
 import java.util.Set;
@@ -21,14 +21,18 @@ public class WindowDataStore {
     private AtomicInteger windowRequestCount = new AtomicInteger();
 
     public boolean updateWindow(String in) {
+        if (ServerUtils.isTerminationString(in)) {
+            logger.warn("Termination String found = \"{}\" ", in);
+            return false;
+        }
+
         if (!isValidNumber(in)) {
-            logger.warn("input is null or not correct length = \"{}\" ", in);
+            logger.warn("input is invalid number = \"{}\" ", in);
             return false;
         }
 
         try {
-            Integer integer = Integer.parseInt(in);
-            updateWindow(integer);
+            updateWindow(Integer.parseInt(in));
         } catch (NumberFormatException e) {
             logger.warn("Unable to convert \"{}\" to integer", in);
             return false;

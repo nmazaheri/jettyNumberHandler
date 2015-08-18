@@ -11,8 +11,8 @@ import java.util.List;
 /**
  * Created by navid.mazaheri on 8/16/15.
  */
-public class SocketUtils {
-    private static final Logger logger = LoggerFactory.getLogger(SocketUtils.class);
+public class ServerUtils {
+    private static final Logger logger = LoggerFactory.getLogger(ServerUtils.class);
 
     public static String getActivePorts(List<Socket> clientSocketList) {
         int[] ports = new int[clientSocketList.size()];
@@ -22,21 +22,25 @@ public class SocketUtils {
         return Arrays.toString(ports);
     }
 
-    public static void attemptToCloseSocket(Socket s) {
+    synchronized public static void attemptToCloseSocket(Socket s) {
         try {
-            if (s != null) {
-                logger.debug("closing connection; port={}", s.getPort());
+            if (s != null && !s.isClosed()) {
+                logger.info("closing connection on port={}", s.getPort());
                 s.close();
             }
         } catch (IOException e) {
-            logger.warn("unable to close connection; socket = {}", s.getPort());
+            logger.warn("unable to close connection on port={}; ", s.getPort(), e);
         }
     }
 
     public static void attemptToCloseSockets(List<Socket> clientSocketList) {
-        logger.debug("closing all connections");
+        logger.debug("closing all connections; {}", getActivePorts(clientSocketList));
         for (Socket s : clientSocketList) {
-            SocketUtils.attemptToCloseSocket(s);
+            ServerUtils.attemptToCloseSocket(s);
         }
+    }
+
+    public static boolean isTerminationString(String in) {
+        return "terminate".equals(in);
     }
 }

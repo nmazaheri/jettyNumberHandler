@@ -10,21 +10,23 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by navid.mazaheri on 8/16/15.
  */
-public class NumberHandler {
-    private static final Logger logger = LoggerFactory.getLogger(NumberHandler.class);
+public class NumberManager {
+    private static final Logger logger = LoggerFactory.getLogger(NumberManager.class);
     private long secondsBetweenLogAggregation = 10l;
-    private WindowDataStore windowDataStore = new WindowDataStore();
+    private final static String filename = "numbers.log";
 
     public static void main(String[] args) {
         try {
-            new NumberHandler().startProgram();
+            new NumberManager().startProgram();
         } catch (Exception e) {
             logger.error("program killed", e);
         }
     }
 
     public void startProgram() throws Exception {
-        NumberLogger numberLogger = new NumberLogger(windowDataStore);
+        logger.debug("starting NumberManager");
+        WindowDataStore windowDataStore = new WindowDataStore();
+        NumberLogger numberLogger = new NumberLogger(windowDataStore, filename);
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
         scheduledExecutorService
                 .scheduleAtFixedRate(numberLogger, secondsBetweenLogAggregation, secondsBetweenLogAggregation,
@@ -32,10 +34,11 @@ public class NumberHandler {
         ServerListener server = new ServerListener(windowDataStore);
         server.start();
         server.join();
-        logger.info("Server thread has finished; shutting down NumberLogger");
+        logger.info("Server thread has finished; shutting down scheduledExecutorService");
+        scheduledExecutorService.shutdown();
+        logger.debug("Shutting down NumberLogger");
         numberLogger.shutdown();
-        logger.debug("Shutting down scheduledExecutorService");
-        scheduledExecutorService.shutdownNow();
+        logger.debug("Shutdown complete");
     }
 
 }

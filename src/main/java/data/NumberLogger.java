@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.text.DecimalFormat;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -14,13 +15,14 @@ import java.util.Set;
  */
 public class NumberLogger implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(NumberLogger.class);
+    private String filename;
     private Set<Integer> totalUnique = new HashSet<Integer>();
     private WindowDataStore window;
-    private final String filename = "numbers.log";
     private Writer wr;
 
-    public NumberLogger(WindowDataStore window) {
+    public NumberLogger(WindowDataStore window, String filename) {
         this.window = window;
+        this.filename = filename;
         init();
     }
 
@@ -35,7 +37,7 @@ public class NumberLogger implements Runnable {
     public void shutdown() {
         if (wr != null) {
             try {
-                logger.debug("closing Writer");
+                logger.debug("closing writer");
                 wr.close();
             } catch (IOException e) {
                 logger.error("unable to close {} due to IOException", filename);
@@ -59,16 +61,14 @@ public class NumberLogger implements Runnable {
         totalUnique.addAll(windowKeys);
         int windowUnique = windowKeys.size();
         int windowDuplicates = totalWindowRequestCount - windowUnique;
-        System.out
-                .printf("Received %s unique numbers, %s duplicates. UniqueTotal: %s\n", windowUnique, windowDuplicates,
-                        totalUnique.size());
-        logger.info("Received {} unique numbers, {} duplicates. UniqueTotal: {}", windowUnique, windowDuplicates,
-                totalUnique.size());
+        printStats(windowUnique, windowDuplicates);
     }
 
     private void writeToFile(Set<Integer> windowUniqueKeys) {
-        if (windowUniqueKeys.isEmpty())
+        if (windowUniqueKeys.isEmpty() || wr == null) {
+            logger.warn("Cannot write to file; wr={}; windowSize={}", wr, windowUniqueKeys.size());
             return;
+        }
 
         logger.debug("adding {} unique keys to {}", windowUniqueKeys.size(), filename);
         try {
@@ -81,5 +81,14 @@ public class NumberLogger implements Runnable {
         } catch (Exception e) {
             logger.error("another error", e);
         }
+    }
+
+    private void printStats(int windowUnique, int windowDuplicates) {
+        DecimalFormat format = new DecimalFormat("###,###,###");
+        String stats = String
+                .format("Received %s unique numbers, %s duplicates. UniqueTotal: %s", format.format(windowUnique),
+                        format.format(windowDuplicates), format.format(totalUnique.size()));
+        System.out.println(stats);
+        logger.info(stats);
     }
 }
