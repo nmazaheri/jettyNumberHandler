@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -25,9 +26,10 @@ public class ServerUtils {
     public static void disconnectAllClients(List<Socket> clientSockets) {
         synchronized (clientSockets) {
             logger.debug("closing all remaining connections; {}", getActivePorts(clientSockets));
-            for (Socket s : clientSockets) {
+            Iterator<Socket> iter = clientSockets.iterator();
+            while (iter.hasNext()) {
                 try {
-                    s.close();
+                    iter.next().close();
                 } catch (IOException e) {
                     logger.warn("unable to close client");
                 }

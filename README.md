@@ -13,6 +13,8 @@ Assumptions / Tradeoffs:
 
 Design:
 ------
+I have two sets, one that supports concurrency and is considered the "windowSet" and another which does not support concurrency and is the "totalSet". I chose this deign because I want to reduce concurrent contention, especially when there is a lot of data. The windowset is a ConcurentHashMap as a set; this allows all the clients to write their data concurrently/independently. I also use an atomicInteger to count the total number of requests. At every logger interval I remove all values in the totalSet from the windowSet; creating a uniqueSet. The total request minus the size of the uniqueSet is the duplicated count. The uniqueSet is then added to the totalSet.
+
 * NumberManager: the main class and initializes the other classes.
 * ServerListener: creates ClientTask's when a new connections occurs.
 * ClientTask: Multiple runnables which reads data from the client socket and passes it to a single shared WindowDataStore
@@ -20,11 +22,15 @@ Design:
 * NumberLogger: aggregates the WindowDataStore data into a total unique and then clears the windowStore. This class is responsible for counting the new uniques and duplicates.
 * ServerUtil: utility functions to keep code clean.
 
+Intructions:
+-----------
+* install and setup maven
+* install java7 JDK
+* run "mvn package" in root folder
+* run "java -jar target/numberserver.jar" 
 
 Sample Output:
 -------------
-Received 1,608,429 unique numbers, 227,510 duplicates. UniqueTotal: 5,994,428
-
-Received 1,793,213 unique numbers, 135,951 duplicates. UniqueTotal: 7,787,641
-
-Received 3,602,506 unique numbers, 269,901 duplicates. UniqueTotal: 11,390,147
+* Received 1,608,429 unique numbers, 227,510 duplicates. UniqueTotal: 5,994,428
+* Received 1,793,213 unique numbers, 135,951 duplicates. UniqueTotal: 7,787,641
+* Received 3,602,506 unique numbers, 269,901 duplicates. UniqueTotal: 11,390,147
