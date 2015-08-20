@@ -3,6 +3,7 @@ import data.WindowDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +24,7 @@ public class NumberManager {
         }
     }
 
-    public void startProgram() throws Exception {
+    public void startProgram() throws IOException {
         logger.debug("starting NumberManager");
         WindowDataStore windowDataStore = new WindowDataStore();
         NumberLogger numberLogger = new NumberLogger(windowDataStore, filename);
@@ -31,12 +32,9 @@ public class NumberManager {
         scheduledExecutorService
                 .scheduleAtFixedRate(numberLogger, secondsBetweenLogAggregation, secondsBetweenLogAggregation,
                         TimeUnit.SECONDS);
-        ServerListener server = new ServerListener(windowDataStore);
-        server.start();
-        server.join();
-        logger.info("Server thread has finished; shutting down scheduledExecutorService");
+        new ServerListener(windowDataStore).start();
+        logger.debug("Server thread has finished; shutting down scheduledExecutorService");
         scheduledExecutorService.shutdown();
-        logger.debug("Shutting down NumberLogger");
         numberLogger.shutdown();
         logger.debug("Shutdown complete");
     }

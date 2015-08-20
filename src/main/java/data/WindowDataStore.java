@@ -44,17 +44,9 @@ public class WindowDataStore {
         return StringUtils.isNotEmpty(in) && in.length() == 9 && StringUtils.isNumeric(in);
     }
 
-    private void updateWindow(Integer dataKey) {
-        if (logger.isTraceEnabled()) {
-            if (concurrentSet.contains(dataKey)) {
-                logger.trace("{} already exists in concurrentSet", dataKey);
-            } else {
-                logger.trace("{} is a new key", dataKey);
-            }
-        }
-
-        concurrentSet.add(dataKey);
-        windowRequestCount.incrementAndGet();
+    synchronized private void updateWindow(Integer dataKey) {
+            concurrentSet.add(dataKey);
+            windowRequestCount.incrementAndGet();
     }
 
     Set<Integer> getConcurrentSet() {

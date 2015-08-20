@@ -22,21 +22,16 @@ public class ServerUtils {
         return Arrays.toString(ports);
     }
 
-    synchronized public static void attemptToCloseSocket(Socket s) {
-        try {
-            if (s != null && !s.isClosed()) {
-                logger.info("closing connection on port={}", s.getPort());
-                s.close();
+    public static void disconnectAllClients(List<Socket> clientSockets) {
+        synchronized (clientSockets) {
+            logger.debug("closing all remaining connections; {}", getActivePorts(clientSockets));
+            for (Socket s : clientSockets) {
+                try {
+                    s.close();
+                } catch (IOException e) {
+                    logger.warn("unable to close client");
+                }
             }
-        } catch (IOException e) {
-            logger.warn("unable to close connection on port={}; ", s.getPort(), e);
-        }
-    }
-
-    public static void attemptToCloseSockets(List<Socket> clientSocketList) {
-        logger.debug("closing all connections; {}", getActivePorts(clientSocketList));
-        for (Socket s : clientSocketList) {
-            ServerUtils.attemptToCloseSocket(s);
         }
     }
 

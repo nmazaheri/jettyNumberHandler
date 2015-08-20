@@ -15,12 +15,12 @@ import java.util.concurrent.Executors;
 /**
  * Created by navid.mazaheri on 8/14/15.
  */
-public class ServerListener extends Thread {
+public class ServerListener {
     private static final Logger logger = LoggerFactory.getLogger(ServerListener.class);
 
     private final int socket = 4000;
     private final int maxClients = 5;
-    private List<Socket> clientSocketList = new ArrayList();
+    private List<Socket> clientSockets = new ArrayList();
     private WindowDataStore windowDataStore;
     private ExecutorService clientProcessingPool = Executors.newFixedThreadPool(maxClients);
     private ServerSocket serverSocket = null;
@@ -29,35 +29,41 @@ public class ServerListener extends Thread {
         this.windowDataStore = windowDataStore;
     }
 
-    public void run() {
+    public void start() {
         try {
             serverSocket = new ServerSocket(socket, maxClients);
             logger.info("Server started on socket {}", socket);
             while (!serverSocket.isClosed()) {
-                Socket clientSocket = serverSocket.accept();
-                clientSocketList.add(clientSocket);
-                logger.info("client connected; currentClientPorts={}", ServerUtils.getActivePorts(clientSocketList));
-                clientProcessingPool.submit(new ClientTask(clientSocketList, clientSocket, windowDataStore, this));
+                handleClient(serverSocket.accept());
             }
         } catch (SocketException e) {
-            logger.debug("server socket has been closed");
+            if (!serverSocket.isClosed())
+                logger.warn("server SocketException", e);
+
         } catch (Exception e) {
             logger.error("Unable to process client request. ", e);
         }
     }
 
-    public void shutdown() {
-        logger.info("Shutting down server and disconnecting all clients={}",
-                ServerUtils.getActivePorts(clientSocketList));
+    private void handleClient(Socket clientSocket) {
+        synchronized (clientSockets) {
+            clientSockets.add(clientSocket);
+            logger.info("client connected port={}; currentClientPorts={}", clientSocket.getPort(),
+                    ServerUtils.getActivePorts(clientSockets));
+        }
 
+        clientProcessingPool.submit(new ClientTask(clientSockets, clientSocket, windowDataStore, this));
+    }
+
+    public void shutdown() {
+        logger.debug("closing server socket");
         try {
             serverSocket.close();
         } catch (IOException e) {
             logger.warn("unable to close serverSocket. ", e);
         }
-
-        ServerUtils.attemptToCloseSockets(clientSocketList);
         clientProcessingPool.shutdown();
+        ServerUtils.disconnectAllClients(clientSockets);
     }
 
 }

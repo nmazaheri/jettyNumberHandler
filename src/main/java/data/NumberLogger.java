@@ -20,18 +20,10 @@ public class NumberLogger implements Runnable {
     private WindowDataStore window;
     private Writer wr;
 
-    public NumberLogger(WindowDataStore window, String filename) {
+    public NumberLogger(WindowDataStore window, String filename) throws IOException {
         this.window = window;
         this.filename = filename;
-        init();
-    }
-
-    public void init() {
-        try {
-            wr = new FileWriter(filename);
-        } catch (IOException e) {
-            logger.error("unable to create FileWriter to {}", filename);
-        }
+        wr = new FileWriter(filename);
     }
 
     public void shutdown() {
@@ -49,8 +41,8 @@ public class NumberLogger implements Runnable {
         Set<Integer> windowKeys;
         int totalWindowRequestCount;
 
-        synchronized (WindowDataStore.class) {
-            windowKeys = new HashSet<Integer>(window.getConcurrentSet());
+        synchronized (window) {
+            windowKeys = new HashSet(window.getConcurrentSet());
             window.getConcurrentSet().clear();
             totalWindowRequestCount = window.getWindowRequestCount().getAndSet(0);
         }
@@ -65,12 +57,9 @@ public class NumberLogger implements Runnable {
     }
 
     private void writeToFile(Set<Integer> windowUniqueKeys) {
-        if (windowUniqueKeys.isEmpty() || wr == null) {
-            logger.warn("Cannot write to file; wr={}; windowSize={}", wr, windowUniqueKeys.size());
+        if (windowUniqueKeys.isEmpty())
             return;
-        }
 
-        logger.debug("adding {} unique keys to {}", windowUniqueKeys.size(), filename);
         try {
             for (Integer i : windowUniqueKeys) {
                 wr.write(i + "\n");
