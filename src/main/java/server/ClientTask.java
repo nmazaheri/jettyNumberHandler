@@ -1,14 +1,15 @@
-import data.WindowDataStore;
+package server;
+
+import data.DataLogger;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.ServerUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.List;
 
 /**
  * Created by navid.mazaheri on 8/16/15.
@@ -17,17 +18,14 @@ public class ClientTask implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ClientTask.class);
 
     private final Socket clientSocket;
-    private List<Socket> clientSockets;
-    private WindowDataStore windowDataStore;
-    private ServerListener parent;
+    private DataLogger dataLogger;
+    private ServerListener server;
     private BufferedReader inputReader;
 
-    public ClientTask(List<Socket> clientSockets, Socket clientSocket, WindowDataStore windowDataStore,
-            ServerListener parent) {
-        this.clientSockets = clientSockets;
+    public ClientTask(Socket clientSocket, DataLogger dataLogger, ServerListener server) {
         this.clientSocket = clientSocket;
-        this.windowDataStore = windowDataStore;
-        this.parent = parent;
+        this.dataLogger = dataLogger;
+        this.server = server;
     }
 
     public void run() {
@@ -37,37 +35,49 @@ public class ClientTask implements Runnable {
             do {
                 clientData = inputReader.readLine();
                 logger.trace("Client Data: {}", clientData);
-            } while (continueReadingFromClient(clientData));
+
+                if (isTerminationString(clientData)) {
+                    logger.warn("Termination String found = \"{}\" ", clientData);
+                    server.shutdown();
+                    return;
+                }
+
+                if (!isValidNumber(clientData)) {
+                    logger.warn("\"{}\" is an invalid input data", clientData);
+                    return;
+                }
+
+                dataLogger.update(clientData);
+            } while (!clientSocket.isClosed());
+
         } catch (SocketException e) {
             if (!clientSocket.isClosed())
                 logger.warn("client socketException", e);
-
-            return;
+        } catch (NumberFormatException e) {
+            logger.warn("Unable to convert \"{}\" to an integer", clientData);
         } catch (IOException e) {
             logger.warn("Unable to read data from client socket", e);
         } finally {
             closeConnection();
         }
-
-        if (ServerUtils.isTerminationString(clientData)) {
-            parent.shutdown();
-        }
     }
 
-    private boolean continueReadingFromClient(String clientData) {
-        return !clientSocket.isClosed() && clientData != null && windowDataStore.updateWindow(clientData);
+    private boolean isValidNumber(String in) {
+        return StringUtils.isNotEmpty(in) && in.length() == 9 && StringUtils.isNumeric(in);
     }
 
     private void closeConnection() {
         try {
             logger.info("closing socket on port {}", clientSocket.getPort());
             inputReader.close();
-            synchronized (clientSockets) {
-                clientSockets.remove(clientSocket);
-            }
+            server.removeClient(clientSocket);
         } catch (IOException e) {
             logger.warn("unable to close BufferedReader");
         }
+    }
+
+    private boolean isTerminationString(String in) {
+        return "terminate".equals(in);
     }
 }
 

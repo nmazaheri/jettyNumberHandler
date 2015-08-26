@@ -13,14 +13,12 @@ Assumptions / Tradeoffs:
 
 Design:
 ------
-I have two sets, one that supports concurrency and is considered the "windowSet" and another which does not support concurrency and is the "totalSet". I chose this deign because I want to reduce concurrent contention, especially when there is a lot of data. The windowset is a ConcurentHashMap as a set; this allows all the clients to write their data concurrently/independently. I also use an atomicInteger to count the total number of requests. At every logger interval I remove all values in the totalSet from the windowSet; creating a uniqueSet. The total request minus the size of the uniqueSet is the duplicated count. The uniqueSet is then added to the totalSet.
 
 * NumberManager: the main class and initializes the other classes.
-* ServerListener: creates ClientTask's when a new connections occurs.
-* ClientTask: Multiple runnables which reads data from the client socket and passes it to a single shared WindowDataStore
-* WindowDataStore: Determines if client data is valid and if so saves it. Supports concurrency and contains a window of data since the last write operation.
-* NumberLogger: aggregates the WindowDataStore data into a total unique and then clears the windowStore. This class is responsible for counting the new uniques and duplicates.
-* ServerUtil: utility functions to keep code clean.
+* server.ServerListener: creates server.ClientTask's when a new connections occurs.
+* server.ClientTask: Multiple runnables which reads data from the client socket and passes it to a single shared WindowDataStore
+* DataStore: 
+* DataLogger: 
 
 Intructions:
 -----------
